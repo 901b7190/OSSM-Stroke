@@ -2,11 +2,15 @@
 #include <Wire.h>
 #include <SPI.h>
 #include <StrokeEngine.h>     // Include Stroke Engine
+
 #include "OSSM_Config.h"      // START HERE FOR Configuration
-#include "OSSM_PinDef.h"      // This is where you set pins specific for your board
+#include "OSSM_PinDEF.h"      // This is where you set pins specific for your board
+#include "OSSM_Debug.h"
 #include "FastLED.h"          // Used for the LED on the Reference Board (or any other pixel LEDS you may add)
 #include "RotaryEncoder.h"
 #include "OssmUi.h"           // Separate file that helps contain the OLED screen functions for Local Remotes
+#include "Network.h"
+#include "Stroker.h"
 
 #define BTN_NONE   0
 #define BTN_SHORT  1
@@ -48,10 +52,10 @@ OssmUi g_ui(REMOTE_ADDRESS, REMOTE_SDA, REMOTE_CLK);
 static motorProperties servoMotor {
   .maxSpeed = MAX_SPEED,                // Maximum speed the system can go in mm/s
   .maxAcceleration = MAX_ACCELERATION,  // Maximum linear acceleration in mm/s²
-  .stepsPerMillimeter = STEP_PER_MM,    // Steps per millimeter 
-  .invertDirection = true,              // One of many ways to change the direction,  
+  .stepsPerMillimeter = STEP_PER_MM,    // Steps per millimeter
+  .invertDirection = true,              // One of many ways to change the direction,
                                         // should things move the wrong way
-  .enableActiveLow = true,              // Polarity of the enable signal      
+  .enableActiveLow = true,              // Polarity of the enable signal
   .stepPin = SERVO_PULSE,               // Pin of the STEP signal
   .directionPin = SERVO_DIR,            // Pin of the DIR signal
   .enablePin = SERVO_ENABLE             // Pin of the enable signal
@@ -72,29 +76,12 @@ static endstopProperties endstop = {
 
 StrokeEngine Stroker;
 
-///////////////////////////////////////////
-////
-////  To Debug or not to Debug
-////
-///////////////////////////////////////////
-
-// Uncomment the following line if you wish to print DEBUG info
-#define DEBUG 
-
-#ifdef DEBUG
-#define LogDebug(...) Serial.println(__VA_ARGS__)
-#define LogDebugFormatted(...) Serial.printf(__VA_ARGS__)
-#else
-#define LogDebug(...) ((void)0)
-#define LogDebugFormatted(...) ((void)0)
-#endif
-
 // Create tasks for checking pot input or web server control, and task to handle
 // planning the motion profile (this task is high level only and does not pulse
 // the stepper!)
 
-TaskHandle_t estop_T    = nullptr;  // Estop Taks for Emergency 
-TaskHandle_t CRemote_T  = nullptr;  // Cable Remote Task 
+TaskHandle_t estop_T    = nullptr;  // Estop Taks for Emergency
+TaskHandle_t CRemote_T  = nullptr;  // Cable Remote Task
 
 #define BRIGHTNESS 170
 #define LED_TYPE WS2811
@@ -126,11 +113,14 @@ void setup() {
   Serial.begin(115200);         // Start Serial.
   LogDebug("\n Starting");      // Start LogDebug
   delay(200);
-  
+
   FastLED.addLeds<LED_TYPE, LED_PIN, COLOR_ORDER>(leds, NUM_LEDS).setCorrection(TypicalLEDStrip);
   FastLED.setBrightness(150);
   setLedRainbow(leds);
   FastLED.show();
+
+  // Network setup
+  networkSetup();
 
   // OLED SETUP
   g_ui.Setup();
@@ -160,7 +150,7 @@ void setup() {
   if(!g_ui.DisplayIsConnected()){
     vTaskSuspend(CRemote_T);
   }
-  
+
   pinMode(SERVO_ALM_PIN, INPUT);
   pinMode(SERVO_PED_PIN, INPUT);
 
@@ -169,7 +159,7 @@ void setup() {
 
   analogReadResolution(12);
   analogSetAttenuation(ADC_11db); // allows us to read almost full 3.3V range
-  
+
   // wait for homing to complete
   while (Stroker.getState() != READY) {
     delay(100);
@@ -177,13 +167,14 @@ void setup() {
 }
 
 void loop() {
+  networkLoop();
   g_ui.UpdateScreen();
 }
 
 void emergencyStopTask(void *pvParameters)
 {
  for (;;)
-  { 
+  {
     bool alm = digitalRead(SERVO_ALM_PIN);
     bool ped = digitalRead(SERVO_PED_PIN);
     //LogDebugFormatted("ALM: %ld \n", static_cast<long int>(alm));
@@ -274,13 +265,13 @@ void CableRemoteTask(void *pvParameters)
             state = HOME;
           break;
           }
-          
+
           if (encoder->wasTurnedLeft()) {
           g_ui.UpdateMessage("Depth Fancy");
           state = M_SET_DEPTH_FANCY;
           break;
           } else if (encoder->wasTurnedRight()) {
-          g_ui.UpdateMessage("Set Depth");  
+          g_ui.UpdateMessage("Set Depth");
           state = M_SET_DEPTH;
           break;
           }
@@ -300,7 +291,7 @@ void CableRemoteTask(void *pvParameters)
           state = M_MENUE;
           break;
           } else if (encoder->wasTurnedRight()) {
-          g_ui.UpdateMessage("Set Stroke");  
+          g_ui.UpdateMessage("Set Stroke");
           state = M_SET_STROKE;
           break;
           }
@@ -344,7 +335,7 @@ void CableRemoteTask(void *pvParameters)
           state = M_SET_DEPTH;
           break;
           } else if (encoder->wasTurnedRight()) {
-          g_ui.UpdateMessage("Set Pattern");  
+          g_ui.UpdateMessage("Set Pattern");
           state = M_SET_PATTERN;
           break;
           }
@@ -388,7 +379,7 @@ void CableRemoteTask(void *pvParameters)
           state = M_SET_STROKE;
           break;
           } else if (encoder->wasTurnedRight()) {
-          g_ui.UpdateMessage("Inter. Depth");  
+          g_ui.UpdateMessage("Inter. Depth");
           state = M_SET_DEPTH_INT;
           break;
           }
@@ -429,12 +420,12 @@ void CableRemoteTask(void *pvParameters)
           state = M_SET_PATTERN;
           break;
           } else if (encoder->wasTurnedRight()) {
-          g_ui.UpdateMessage("Depth Fancy");  
+          g_ui.UpdateMessage("Depth Fancy");
           state = M_SET_DEPTH_FANCY;
           break;
           }
           break;
-          
+
           case OPT_SET_DEPTH_INT:
           if (buttonstate == BTN_LONG) {
           state = M_SET_DEPTH_INT;
@@ -473,7 +464,7 @@ void CableRemoteTask(void *pvParameters)
           state = M_SET_DEPTH_INT;
           break;
           } else if (encoder->wasTurnedRight()) {
-          g_ui.UpdateMessage("Home");  
+          g_ui.UpdateMessage("Home");
           state = M_MENUE;
           break;
           }
@@ -502,14 +493,15 @@ void CableRemoteTask(void *pvParameters)
           }
           break;
     }
-     speed = getAnalogAverage(SPEED_POT_PIN, 200); // get average analog reading, function takes pin and # samples
-     g_ui.UpdateStateL(speed);
-     //LogDebug(speed);
-     speed = fscale(0.00, 99.98, 0.5, USER_SPEEDLIMIT, speed, -1);
-     //LogDebug(speed);
-     
-     Stroker.setSpeed(speed, true);
-     vTaskDelay(100);
+
+    // // get average analog reading, function takes pin and # samples
+    // speed = getAnalogAverage(SPEED_POT_PIN, 200);
+    // g_ui.UpdateStateL(speed);
+    // //LogDebug(speed);
+    // speed = fscale(0.00, 99.98, 0.5, USER_SPEEDLIMIT, speed, -1);
+
+    // Stroker.setSpeed(speed, true);
+    vTaskDelay(100);
    }
 }
 
@@ -525,7 +517,7 @@ float getAnalogAverage(int pinNumber, int samples)
     }
     average = sum / samples;
     // TODO: Might want to add a deadband
-    
+
     percentage = 100.0 * average / 4096.0; // 12 bit resolution
     return percentage;
 }

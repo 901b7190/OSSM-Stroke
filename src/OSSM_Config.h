@@ -1,6 +1,7 @@
 /*
     User Config for OSSM - Reference board users should tweak this to match their personal build.
 */
+#pragma once
 
 /*
         Motion System Config
@@ -31,3 +32,9 @@
 // The minimum value of the pot in percent
 // prevents noisy pots registering commands when turned down to zero by user
 const float commandDeadzonePercentage = 1.0f;
+
+// Uncomment the following line if you wish to print DEBUG info
+#define DEBUG
+
+// Some useful macros
+#define MIN(X,Y) (((X)<(Y)) ? (X):(Y))
