@@ -1,15 +1,16 @@
-#include <Arduino.h>          // Basic Needs
+#include <Arduino.h>
+#include <FastLED.h>
 #include <Wire.h>
 #include <SPI.h>
-#include <StrokeEngine.h>     // Include Stroke Engine
+#include <StrokeEngine.h>
 
-#include "OSSM_Config.h"      // START HERE FOR Configuration
-#include "OSSM_PinDEF.h"      // This is where you set pins specific for your board
+#include "OSSM_Config.h"
+#include "OSSM_PinDEF.h"
 #include "OSSM_Debug.h"
-#include "FastLED.h"          // Used for the LED on the Reference Board (or any other pixel LEDS you may add)
-#include "Network.h"
+
 #include "Stroker.h"
 #include "Model.h"
+#include "network/Network.h"
 #include "ui/Ui.h"
 
 #define LED_BRIGHTNESS 150
