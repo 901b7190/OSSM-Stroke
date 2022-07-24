@@ -77,14 +77,11 @@ namespace OSSMStroke {
 
             if (!doc["speed"].is<float_t>()) {
                 return writeHttpBadRequest(req, "invalid_speed");
-                return ESP_OK;
             }
 
-            // FIXME hardcoded safeguard. We need model.
-            float_t speed = MIN(300.f, doc["speed"].as<float_t>());
-            model.setSpeed(speed);
+            model.setSpeed(doc["speed"].as<float_t>());
 
-            httpd_resp_send(req, "{\"result\": \"ok\"}", 0);
+            httpd_resp_send(req, "{\"result\": \"ok\"}", HTTPD_RESP_USE_STRLEN);
             return ESP_OK;
         }
 
@@ -163,47 +160,38 @@ namespace OSSMStroke {
             // Web Server stuff //
             //////////////////////
 
-            // FIXME not working right now.
-            // if (
-            //     esp_err_t err = esp_event_handler_register(
-            //         IP_EVENT,
-            //         IP_EVENT_STA_GOT_IP,
-            //         &connectHandler,
-            //         NULL
-            //     ) != ESP_OK
-            // ) {
-            //     LogDebugFormatted(
-            //         "Failed to register server connection handler: %s.",
-            //         esp_err_to_name(err),
-            //     );
-            // } else if (
-            //     esp_err_t err = esp_event_handler_register(
-            //         WIFI_EVENT,
-            //         WIFI_EVENT_STA_DISCONNECTED,
-            //         &disconnectHandler,
-            //         NULL
-            //     ) != ESP_OK
-            // ) {
-            //     LogDebugFormatted(
-            //         "Failed to register server disconnection handler: %s.",
-            //         esp_err_to_name(err),
-            //     );
-            // }
+            if (
+                esp_err_t err = esp_event_handler_register(
+                    IP_EVENT,
+                    IP_EVENT_STA_GOT_IP,
+                    &connectHandler,
+                    NULL
+                ) != ESP_OK
+            ) {
+                LogDebugFormatted(
+                    "Failed to register server connection handler: %s.",
+                    esp_err_to_name(err)
+                );
+            } else if (
+                esp_err_t err = esp_event_handler_register(
+                    WIFI_EVENT,
+                    WIFI_EVENT_STA_DISCONNECTED,
+                    &disconnectHandler,
+                    NULL
+                ) != ESP_OK
+            ) {
+                LogDebugFormatted(
+                    "Failed to register server disconnection handler: %s.",
+                    esp_err_to_name(err)
+                );
+            }
             if (server == NULL && WiFi.status() == WL_CONNECTED) {
                 startWebserver();
             }
         }
 
         void loop() {
-            /////////////////
-            // Wi-Fi stuff //
-            /////////////////
             wifiManager.process();
-
-            // FIXME put this in setup when events handlers are usable
-            if (server == NULL && WiFi.status() == WL_CONNECTED) {
-                startWebserver();
-            }
         }
     }
 }

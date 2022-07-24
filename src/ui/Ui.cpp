@@ -69,6 +69,7 @@ namespace OSSMStroke {
                 currentCarrouselIndex = (currentCarrouselIndex + direction) % carousel.size();
                 return currentCarrouselIndex;
             };
+            float previousSpeed = -1.;
 
             struct ScreenPayload {
                 bool apply = true;
@@ -203,17 +204,30 @@ namespace OSSMStroke {
                         break;
                 }
 
-                // get average analog reading, function takes pin and # samples
-                auto speedPercent = getAnalogAverage(OSSM_SPEED_POT_PIN, 200);
                 screenPayload.titleLeft = "Speed";
-                screenPayload.stateLeft = speedPercent;
-                model.setSpeed(MAP(
+                auto speedPercent = getAnalogAverage(OSSM_SPEED_POT_PIN, 200);
+                auto newSpeed = MAP(
                     speedPercent,
                     OSSM_SPEED_POT_DEADZONE_PERCENT,
                     100. - OSSM_SPEED_POT_DEADZONE_PERCENT,
                     model.MIN_SPEED,
                     model.MAX_SPEED
-                ));
+                );
+                if (1. < abs(newSpeed - previousSpeed)) {
+                    // This condition prevents spamming setSpeed at each iteration.
+                    // It makes the speed overridable by some other task (e.g. API).
+                    model.setSpeed(newSpeed);
+                    previousSpeed = newSpeed;
+                }
+                // Get the speed from model and not from "speedPercent" to
+                // update screen in case of external change (e.g. API).
+                screenPayload.stateLeft = MAP(
+                    model.getSpeed(),
+                    model.MIN_SPEED,
+                    model.MAX_SPEED,
+                    0,
+                    100.
+                );
 
                 if (screenPayload.apply) {
                     ossmUi.UpdateMessage(screenPayload.message);
