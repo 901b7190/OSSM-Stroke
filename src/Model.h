@@ -3,6 +3,8 @@
 #include <map>
 #include <vector>
 
+#include "OSSM_Config.h"
+
 namespace OSSMStroke {
     namespace Model {
         class Model;
@@ -34,10 +36,10 @@ namespace OSSMStroke {
             private:
                 HomingStatus _homingStatus = HomingStatus::IN_PROGRESS;
                 MotionMode _motionMode = MotionMode::STOPPED;
-                float _speed = .0;
-                float _depth = .0;
-                float _stroke = .0;
-                float _sensation = .0;
+                float _speed = 10.;
+                float _depth = 30.;
+                float _stroke = 30.;
+                float _sensation = 50.;
                 int _pattern = 0;
 
                 std::map<Event, std::vector<SubscribeFunc>> _subscriptions;
@@ -45,6 +47,13 @@ namespace OSSMStroke {
                 void _dispatch(Event event);
 
             public:
+                const float MIN_SPEED = 0.;
+                const float MAX_SPEED = OSSM_USER_SPEEDLIMIT;
+                const float MIN_DEPTH = 0.;
+                const float MAX_DEPTH = OSSM_MAX_STROKEINMM;
+                const float MIN_SENSATION = -100.;
+                const float MAX_SENSATION = 100.;
+
                 void subscribe(Event event, SubscribeFunc func);
                 void unsubscribe(SubscribeFunc func);
 
@@ -66,7 +75,7 @@ namespace OSSMStroke {
                 float getSensation();
                 void setSensation(float sensation);
 
-                float getPattern();
+                int getPattern();
                 void setPattern(int pattern);
         };
     }

@@ -46,6 +46,7 @@ namespace OSSMStroke {
             return _speed;
         }
         void Model::setSpeed(float speed) {
+            speed = constrain(speed, MIN_SPEED, MAX_SPEED);
             if (speed == _speed) return;
             _speed = speed;
             _dispatch(Event::SPEED_CHANGED);
@@ -55,6 +56,7 @@ namespace OSSMStroke {
             return _depth;
         }
         void Model::setDepth(float depth) {
+            depth = constrain(depth, MIN_DEPTH, MAX_DEPTH);
             if (depth == _depth) return;
             _depth = depth;
             _dispatch(Event::DEPTH_CHANGED);
@@ -64,6 +66,7 @@ namespace OSSMStroke {
             return _stroke;
         }
         void Model::setStroke(float stroke) {
+            stroke = constrain(stroke, MIN_DEPTH, MAX_DEPTH);
             if (stroke == _stroke) return;
             _stroke = stroke;
             _dispatch(Event::STROKE_CHANGED);
@@ -73,12 +76,13 @@ namespace OSSMStroke {
             return _sensation;
         }
         void Model::setSensation(float sensation) {
+            sensation = constrain(sensation, MIN_SENSATION, MAX_SENSATION);
             if (sensation == _sensation) return;
             _sensation = sensation;
             _dispatch(Event::SENSATION_CHANGED);
         }
 
-        float Model::getPattern() {
+        int Model::getPattern() {
             return _pattern;
         }
         void Model::setPattern(int pattern) {

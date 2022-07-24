@@ -36,11 +36,11 @@ void setup() {
     Serial.begin(115200);         // Start Serial.
     LogDebug("\n Starting");      // Start LogDebug
 
-    pinMode(SERVO_ALM_PIN, INPUT);
-    pinMode(SERVO_PED_PIN, INPUT);
+    pinMode(OSSM_SERVO_ALM_PIN, INPUT);
+    pinMode(OSSM_SERVO_PED_PIN, INPUT);
 
-    pinMode(SPEED_POT_PIN, INPUT);
-    adcAttachPin(SPEED_POT_PIN);
+    pinMode(OSSM_SPEED_POT_PIN, INPUT);
+    adcAttachPin(OSSM_SPEED_POT_PIN);
 
     analogReadResolution(12);
     analogSetAttenuation(ADC_11db); // allows us to read almost full 3.3V range

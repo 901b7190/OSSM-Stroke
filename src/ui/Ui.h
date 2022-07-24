@@ -5,14 +5,12 @@ namespace OSSMStroke {
         enum MenuState {
             START,
             HOME,
-            M_MENUE,
+            MAIN_MENU,
             M_SET_DEPTH,
             M_SET_STROKE,
-            M_SET_SENSATION,
             M_SET_PATTERN,
             OPT_SET_DEPTH,
             OPT_SET_STROKE,
-            OPT_SET_SENSATION,
             OPT_SET_PATTERN,
         };
 

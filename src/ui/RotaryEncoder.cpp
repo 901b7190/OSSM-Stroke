@@ -6,15 +6,15 @@
 namespace OSSMStroke {
     namespace Ui {
         RotaryEncoder::RotaryEncoder() {
-            encoder = new Encoder(ENC_CLK, ENC_DT);
-            pinMode(ENC_SW,   INPUT);
+            encoder = new Encoder(OSSM_ENC_CLK, OSSM_ENC_DT);
+            pinMode(OSSM_ENC_SW, INPUT);
         }
 
         RotaryEncoder::ButtonState RotaryEncoder::checkButton() {
             static bool lastBtn = LOW;
             static unsigned long keyDownTime = 0;
             ButtonState btnState = ButtonState::NONE;
-            bool thisBtn = digitalRead(ENC_SW);
+            bool thisBtn = digitalRead(OSSM_ENC_SW);
 
             //Detect single presses, no repeating, on keyup
             if(thisBtn == HIGH && lastBtn == LOW){
@@ -22,9 +22,9 @@ namespace OSSMStroke {
             }
 
             if (thisBtn == LOW && lastBtn == HIGH) { // there was a keyup
-                if((millis()-keyDownTime) >= V_LONG_PRESS_MS){
+                if((millis()-keyDownTime) >= OSSM_V_LONG_PRESS_MS){
                     btnState = ButtonState::VERY_LONG;
-                } else if((millis()-keyDownTime) >= LONG_PRESS_MS){
+                } else if((millis()-keyDownTime) >= OSSM_LONG_PRESS_MS){
                     btnState = ButtonState::LONG;
                 } else {
                     btnState = ButtonState::SHORT;
@@ -36,7 +36,7 @@ namespace OSSMStroke {
         }
 
         bool RotaryEncoder::wasTurnedLeft() {
-            if (encoder->read() < 0 - ENC_TOL) {
+            if (encoder->read() < 0 - OSSM_ENC_TOL) {
                 encoder->write(0);
                 return true;
             }
@@ -44,7 +44,7 @@ namespace OSSMStroke {
         }
 
         bool RotaryEncoder::wasTurnedRight() {
-            if (encoder->read() > 0 + ENC_TOL) {
+            if (encoder->read() > 0 + OSSM_ENC_TOL) {
                 encoder->write(0);
                 return true;
             }

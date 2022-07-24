@@ -12,29 +12,29 @@ namespace OSSMStroke {
         StrokeEngine stroker;
 
         static motorProperties servoMotor {
-            .maxSpeed = MAX_SPEED,                // Maximum speed the system can go in mm/s
-            .maxAcceleration = MAX_ACCELERATION,  // Maximum linear acceleration in mm/s²
-            .stepsPerMillimeter = STEP_PER_MM,    // Steps per millimeter
+            .maxSpeed = OSSM_MAX_SPEED,                // Maximum speed the system can go in mm/s
+            .maxAcceleration = OSSM_MAX_ACCELERATION,  // Maximum linear acceleration in mm/s²
+            .stepsPerMillimeter = OSSM_STEP_PER_MM,    // Steps per millimeter
             .invertDirection = true,              // One of many ways to change the direction,
                                                   // should things move the wrong way
             .enableActiveLow = true,              // Polarity of the enable signal
-            .stepPin = SERVO_PULSE,               // Pin of the STEP signal
-            .directionPin = SERVO_DIR,            // Pin of the DIR signal
-            .enablePin = SERVO_ENABLE             // Pin of the enable signal
+            .stepPin = OSSM_SERVO_PULSE,               // Pin of the STEP signal
+            .directionPin = OSSM_SERVO_DIR,            // Pin of the DIR signal
+            .enablePin = OSSM_SERVO_ENABLE             // Pin of the enable signal
         };
 
         static machineGeometry strokingMachine = {
             // Real physical travel from one hard endstop to the other
-            .physicalTravel = MAX_STROKEINMM,
+            .physicalTravel = OSSM_MAX_STROKEINMM,
             // Safe distance the motion is constrained to avoiding crashes
-            .keepoutBoundary = STROKEBOUNDARY
+            .keepoutBoundary = OSSM_STROKEBOUNDARY
         };
 
         // Configure Homing Procedure
         static endstopProperties endstop = {
             .homeToBack = true,                 // Endstop sits at the rear of the machine
             .activeLow = true,                  // switch is wired active low
-            .endstopPin = SERVO_ENDSTOP,        // Pin number
+            .endstopPin = OSSM_SERVO_ENDSTOP,   // Pin number
             .pinMode = INPUT_PULLUP             // pinmode INPUT with external pull-up resistor
         };
 
@@ -84,6 +84,10 @@ namespace OSSMStroke {
                 stroker.setStroke(model.getStroke(), true);
             });
             model.subscribe(Model::Event::PATTERN_CHANGED, [](Model::Model& model) {
+                auto pattern = model.getPattern();
+                if (!(0 < pattern || pattern < stroker.getNumberOfPattern())) {
+                    pattern = 0;
+                }
                 stroker.setPattern(model.getPattern(), false);
             });
 

@@ -10,11 +10,9 @@
 namespace OSSMStroke {
     namespace Ui {
         MenuState menuState = MenuState::START;
-        OssmUi ossmUi(REMOTE_ADDRESS, REMOTE_SDA, REMOTE_CLK);
-        TaskHandle_t screenTaskHandle = nullptr;
+        OssmUi ossmUi(OSSM_REMOTE_ADDRESS, OSSM_REMOTE_SDA, OSSM_REMOTE_CLK);
+        TaskHandle_t remoteControlTaskHandle = nullptr;
         TaskHandle_t emergencyStopTaskHandle = nullptr;
-
-
 
         void onHomingChanged(Model::Model& model) {
             LogDebug("Homing status changed.");
@@ -49,32 +47,68 @@ namespace OSSMStroke {
             return percentage;
         }
 
-        void screenTask(void *pvParameters)
+
+        void remoteControlTask(void *pvParameters)
         {
             RotaryEncoder encoder = RotaryEncoder();
-            unsigned int patternN = Stroker::getNumberOfPattern();
+            auto encoderSign = [&]() {
+                return (
+                    encoder.wasTurnedLeft() ? -1
+                    : encoder.wasTurnedRight() ? 1
+                    : 0
+                );
+            };
+            const std::vector<MenuState> carousel = {
+                MenuState::MAIN_MENU,
+                MenuState::M_SET_DEPTH,
+                MenuState::M_SET_STROKE,
+                MenuState::M_SET_PATTERN,
+            };
+            int currentCarrouselIndex = 0;
+            auto nextCarouselIndex = [&](int direction) {
+                currentCarrouselIndex = (currentCarrouselIndex + direction) % carousel.size();
+                return currentCarrouselIndex;
+            };
+
+            struct ScreenPayload {
+                bool apply = true;
+                String message = "";
+                String titleLeft = "";
+                String titleRight = "";
+                float stateLeft = 0.;
+                float stateRight = 0.;
+            };
 
             for (;;)
             {
                 auto buttonState = encoder.checkButton();
+                ScreenPayload screenPayload;
                 switch (menuState)
                 {
-                    case MenuState::M_SET_SENSATION:
-                    case MenuState::OPT_SET_SENSATION:
-                        break;
-
                     case MenuState::START:
-                        if (buttonState == RotaryEncoder::ButtonState::LONG){
-                            menuState = HOME;
+                        if (buttonState == RotaryEncoder::ButtonState::LONG) {
+                            menuState = MenuState::HOME;
                             ossmUi.clearLogo();
-                            ossmUi.UpdateMessage("Hold Down to Start");
-                            ossmUi.UpdateTitelL("Speed");
-                            ossmUi.UpdateTitelR("Sensation");
-                            ossmUi.UpdateStateR(map(model.getSensation(),-100,100,0,100));
+                        } else {
+                            screenPayload.apply = false;
                         }
                         break;
 
-                    case MenuState::HOME:
+                    case MenuState::HOME: {
+                        String action = "Start";
+                        if (model.getMotionMode() != Model::MotionMode::STOPPED) {
+                            action = "Stop";
+                        }
+                        screenPayload.message = "Hold Down to " + action;
+                        screenPayload.titleLeft = "Speed";
+                        screenPayload.titleRight = "Sensation";
+                        screenPayload.stateRight = MAP(
+                            model.getSensation(),
+                            model.MIN_SENSATION,
+                            model.MAX_SENSATION,
+                            0.,
+                            100.
+                        );
                         if (buttonState == RotaryEncoder::ButtonState::VERY_LONG) {
                             switch (model.getMotionMode()) {
                                 case Model::MotionMode::STOPPED:
@@ -85,154 +119,110 @@ namespace OSSMStroke {
                                     break;
                             }
                         } else if (buttonState == RotaryEncoder::ButtonState::LONG) {
-                            ossmUi.UpdateMessage("Home");
-                            ossmUi.UpdateTitelR("");
-                            ossmUi.UpdateStateR(.0);
-                            menuState = M_MENUE;
-                        } else if (encoder.wasTurnedLeft()) {
-                            auto sensation = model.getSensation();
-                            sensation = constrain((sensation - (200/ENCODER_RESULTION)), -100, 100);
+                            menuState = MenuState::MAIN_MENU;
+                        } else if (auto sign = encoderSign()) {
+                            auto sensation = model.getSensation() + sign * (200 / OSSM_ENCODER_RESULTION);
                             model.setSensation(sensation);
-                            ossmUi.UpdateStateR(map(sensation,-100,100,0,100));
-                        } else if (encoder.wasTurnedRight()) {
-                            auto sensation = model.getSensation();
-                            sensation = constrain((sensation + (200/ENCODER_RESULTION)), -100, 100);
-                            model.setSensation(sensation);
-                            ossmUi.UpdateStateR(map(sensation,-100,100,0,100));
+                            continue;
                         }
                         break;
+                    }
 
-                    case M_MENUE:
+                    case MenuState::MAIN_MENU: {
+                        screenPayload.message = "Home";
                         if (buttonState == RotaryEncoder::ButtonState::LONG) {
-                            auto sensation = model.getSensation();
-                            ossmUi.UpdateMessage("Hold For Start");
-                            ossmUi.UpdateTitelR("Sensation");
-                            ossmUi.UpdateStateR(map(sensation,-100,100,0,100));
-                            menuState = HOME;
-                        } else if (encoder.wasTurnedLeft()) {
-                            ossmUi.UpdateMessage("Set Pattern");
-                            menuState = M_SET_PATTERN;
-                        } else if (encoder.wasTurnedRight()) {
-                            ossmUi.UpdateMessage("Set Depth");
-                            menuState = M_SET_DEPTH;
+                            menuState = MenuState::HOME;
+                        } else if (auto sign = encoderSign()) {
+                            menuState = carousel[nextCarouselIndex(sign)];
                         }
                         break;
+                    }
 
                     case M_SET_DEPTH:
+                        screenPayload.message = "Set Depth";
                         if (buttonState == RotaryEncoder::ButtonState::LONG) {
-                            menuState = OPT_SET_DEPTH;
-                            ossmUi.UpdateMessage("->Set Depth<-");
-                            auto depth = model.getDepth();
-                            ossmUi.UpdateStateR(map(depth,0,MAX_STROKEINMM,0,100));
-                            ossmUi.UpdateTitelR("Depth");
-                        } else if (encoder.wasTurnedLeft()) {
-                            ossmUi.UpdateMessage("Home");
-                            menuState = M_MENUE;
-                        } else if (encoder.wasTurnedRight()) {
-                            ossmUi.UpdateMessage("Set Stroke");
-                            menuState = M_SET_STROKE;
+                            menuState = MenuState::OPT_SET_DEPTH;
+                        } else if (auto sign = encoderSign()) {
+                            menuState = carousel[nextCarouselIndex(sign)];
                         }
                         break;
 
                     case OPT_SET_DEPTH:
+                        screenPayload.message = "->Set Depth<-";
+                        screenPayload.titleRight = "Depth";
+                        screenPayload.stateRight = MAP(model.getDepth(), model.MIN_DEPTH, model.MAX_DEPTH, 0., 100.);
                         if (buttonState == RotaryEncoder::ButtonState::LONG) {
-                            menuState = M_SET_DEPTH;
-                            ossmUi.UpdateMessage("Set Depth");
-                            ossmUi.UpdateStateR(.0);
-                            ossmUi.UpdateTitelR("");
-                        } else if (encoder.wasTurnedLeft()) {
-                            auto depth = model.getDepth();
-                            depth = constrain((depth - DEPTH_RESULTION) , 0, MAX_STROKEINMM);
+                            menuState = MenuState::M_SET_DEPTH;
+                        } else if (auto sign = encoderSign()) {
+                            auto depth = model.getDepth() + sign * OSSM_DEPTH_RESULTION;
                             model.setDepth(depth);
-                            ossmUi.UpdateStateR(map(depth,0,MAX_STROKEINMM,0,100));
-                            LogDebug(depth);
-                        } else if (encoder.wasTurnedRight()) {
-                            auto depth = model.getDepth();
-                            depth = constrain((depth + DEPTH_RESULTION) , 0, MAX_STROKEINMM);
-                            model.setDepth(depth);
-                            ossmUi.UpdateStateR(map(depth,0,MAX_STROKEINMM,0,100));
-                            LogDebug(depth);
+                            continue;
                         }
                         break;
 
                     case M_SET_STROKE:
+                        screenPayload.message = "Set Stroke";
                         if (buttonState == RotaryEncoder::ButtonState::LONG) {
-                            auto stroke = model.getStroke();
-                            menuState = OPT_SET_STROKE;
-                            ossmUi.UpdateMessage("->Set Stroke<-");
-                            ossmUi.UpdateStateR(map(stroke,0,MAX_STROKEINMM,0,100));
-                            ossmUi.UpdateTitelR("Stroke");
-                        } else if (encoder.wasTurnedLeft()) {
-                            ossmUi.UpdateMessage("Set Depth");
-                            menuState = M_SET_DEPTH;
-                        } else if (encoder.wasTurnedRight()) {
-                            ossmUi.UpdateMessage("Set Pattern");
-                            menuState = M_SET_PATTERN;
+                            menuState = MenuState::OPT_SET_STROKE;
+                        } else if (auto sign = encoderSign()) {
+                            menuState = carousel[nextCarouselIndex(sign)];
                         }
                         break;
 
                     case OPT_SET_STROKE:
+                        screenPayload.message = "->Set Stroke<-";
+                        screenPayload.titleRight = "Stroke";
+                        screenPayload.stateRight = MAP(model.getStroke(), model.MIN_DEPTH, model.MAX_DEPTH, 0., 100.);
                         if (buttonState == RotaryEncoder::ButtonState::LONG) {
-                            menuState = M_SET_STROKE;
-                            ossmUi.UpdateMessage("Set Stroke");
-                            ossmUi.UpdateStateR(.0);
-                            ossmUi.UpdateTitelR("");
-                        } else if (encoder.wasTurnedLeft()) {
-                            auto stroke = model.getStroke();
-                            stroke = constrain((stroke - STROKE_RESULTION) , 0, MAX_STROKEINMM);
-                            model.setStroke(stroke);
-                            ossmUi.UpdateStateR(map(stroke,0,MAX_STROKEINMM,0,100));
-                            LogDebug(stroke);
-                        } else if (encoder.wasTurnedRight()) {
-                            auto stroke = model.getStroke();
-                            stroke = constrain((stroke + STROKE_RESULTION) , 0, MAX_STROKEINMM);
-                            model.setStroke(stroke);
-                            ossmUi.UpdateStateR(map(stroke,0,MAX_STROKEINMM,0,100));
-                            LogDebug(stroke);
+                            menuState = MenuState::M_SET_STROKE;
+                        } else if (auto sign = encoderSign()) {
+                            auto depth = model.getStroke() + sign * OSSM_STROKE_RESULTION;
+                            model.setStroke(depth);
+                            continue;
                         }
                         break;
 
                     case M_SET_PATTERN:
+                        screenPayload.message = "Set Pattern";
                         if (buttonState == RotaryEncoder::ButtonState::LONG) {
-                            auto pattern = model.getPattern();
-                            menuState = OPT_SET_PATTERN;
-                            ossmUi.UpdateMessage("->Select Pattern<-");
-                            ossmUi.UpdateMessage(Stroker::getPatternName(pattern));
-                            ossmUi.UpdateTitelR("Pattern");
-                        } else if (encoder.wasTurnedLeft()) {
-                            ossmUi.UpdateMessage("Set Stroke");
-                            menuState = M_SET_STROKE;
-                        } else if (encoder.wasTurnedRight()) {
-                            ossmUi.UpdateMessage("Home");
-                            menuState = M_MENUE;
+                            menuState = MenuState::OPT_SET_PATTERN;
+                        } else if (auto sign = encoderSign()) {
+                            menuState = carousel[nextCarouselIndex(sign)];
                         }
                         break;
 
                     case OPT_SET_PATTERN:
+                        screenPayload.message = Stroker::getPatternName(model.getPattern());
                         if (buttonState == RotaryEncoder::ButtonState::LONG) {
-                            auto pattern = model.getPattern();
-                            menuState = M_SET_PATTERN;
-                            ossmUi.UpdateMessage("Select Pattern");
-                            ossmUi.UpdateStateR(.0);
-                            ossmUi.UpdateTitelR("");
+                            menuState = MenuState::M_SET_PATTERN;
+                        } else if (auto sign = encoderSign()) {
+                            auto pattern = (model.getPattern() + sign) % Stroker::getNumberOfPattern();
                             model.setPattern(pattern);
-                        } else if (encoder.wasTurnedLeft()) {
-                            auto pattern = model.getPattern();
-                            pattern = constrain((pattern - 1), 0, patternN);
-                            ossmUi.UpdateMessage(Stroker::getPatternName(pattern));
-                        } else if (encoder.wasTurnedRight()) {
-                            auto pattern = model.getPattern();
-                            pattern = constrain((pattern + 1), 0, patternN);
-                            ossmUi.UpdateMessage(Stroker::getPatternName(pattern));
+                            continue;
                         }
                         break;
                 }
 
                 // get average analog reading, function takes pin and # samples
-                auto speed = getAnalogAverage(SPEED_POT_PIN, 200);
-                ossmUi.UpdateStateL(speed);
-                speed = fscale(0.00, 99.98, 0.5, USER_SPEEDLIMIT, speed, -1);
-                model.setSpeed(speed);
+                auto speedPercent = getAnalogAverage(OSSM_SPEED_POT_PIN, 200);
+                screenPayload.titleLeft = "Speed";
+                screenPayload.stateLeft = speedPercent;
+                model.setSpeed(MAP(
+                    speedPercent,
+                    OSSM_SPEED_POT_DEADZONE_PERCENT,
+                    100. - OSSM_SPEED_POT_DEADZONE_PERCENT,
+                    model.MIN_SPEED,
+                    model.MAX_SPEED
+                ));
+
+                if (screenPayload.apply) {
+                    ossmUi.UpdateMessage(screenPayload.message);
+                    ossmUi.UpdateTitelL(screenPayload.titleLeft);
+                    ossmUi.UpdateTitelR(screenPayload.titleRight);
+                    ossmUi.UpdateStateL(screenPayload.stateLeft);
+                    ossmUi.UpdateStateR(screenPayload.stateRight);
+                }
+
                 delay(100);
             }
         }
@@ -251,12 +241,12 @@ namespace OSSMStroke {
                 if (!isConnected && ossmUi.DisplayIsConnected()) {
                     LogDebug("Display Connected");
                     isConnected = true;
-                    vTaskResume(screenTaskHandle);
+                    vTaskResume(remoteControlTaskHandle);
                 } else if (isConnected && !ossmUi.DisplayIsConnected()) {
                     LogDebug("Display Disconnected");
                     isConnected = false;
                     model.setMotionMode(Model::MotionMode::STOPPED);
-                    vTaskSuspend(screenTaskHandle);
+                    vTaskSuspend(remoteControlTaskHandle);
                 }
                 vTaskDelay(200);
             }
@@ -271,13 +261,13 @@ namespace OSSMStroke {
             ossmUi.Setup();
             ossmUi.UpdateOnly();
             xTaskCreatePinnedToCore(
-                screenTask,         // Task function.
-                "screenTask",       // name of task.
-                4096,               // Stack size of task
-                NULL,               // parameter of the task
-                5,                  // priority of the task
-                &screenTaskHandle,  // Task handle to keep track of created task
-                0                   // pin task to core 0
+                remoteControlTask,          // Task function.
+                "remoteControlTask",        // name of task.
+                4096,                       // Stack size of task
+                NULL,                       // parameter of the task
+                5,                          // priority of the task
+                &remoteControlTaskHandle,   // Task handle to keep track of created task
+                0                           // pin task to core 0
             );
             xTaskCreatePinnedToCore(
                 emergencyStopTask,          // Task function.
