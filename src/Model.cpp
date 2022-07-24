@@ -33,6 +33,15 @@ namespace OSSMStroke {
             _dispatch(Event::HOMING_STATUS_CHANGED);
         }
 
+        MotionMode Model::getMotionMode() {
+            return _motionMode;
+        }
+        void Model::setMotionMode(MotionMode motionMode) {
+            if (_motionMode == motionMode) return;
+            _motionMode = motionMode;
+            _dispatch(Event::MOTION_MODE_CHANGED);
+        }
+
         float Model::getSpeed() {
             return _speed;
         }

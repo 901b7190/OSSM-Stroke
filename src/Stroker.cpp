@@ -42,6 +42,10 @@ namespace OSSMStroke {
             return stroker.getNumberOfPattern();
         }
 
+        String getPatternName(int index) {
+            return stroker.getPatternName(index);
+        }
+
         void setup() {
             LogDebug("Setting up stroker.");
             stroker.begin(&strokingMachine, &servoMotor);
@@ -81,6 +85,19 @@ namespace OSSMStroke {
             });
             model.subscribe(Model::Event::PATTERN_CHANGED, [](Model::Model& model) {
                 stroker.setPattern(model.getPattern(), false);
+            });
+
+            model.subscribe(Model::Event::MOTION_MODE_CHANGED, [](Model::Model& model) {
+                Model::MotionMode motionMode = model.getMotionMode();
+                LogDebugFormatted(">>> Motion changed: %d\n", motionMode);
+                switch (motionMode) {
+                    case Model::MotionMode::PATTERN:
+                        stroker.startPattern();
+                        break;
+                    default:
+                        stroker.stopMotion();
+                        break;
+                }
             });
         }
 

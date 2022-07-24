@@ -14,6 +14,8 @@ namespace OSSMStroke {
         TaskHandle_t screenTaskHandle = nullptr;
         TaskHandle_t emergencyStopTaskHandle = nullptr;
 
+
+
         void onHomingChanged(Model::Model& model) {
             LogDebug("Homing status changed.");
 
@@ -49,7 +51,6 @@ namespace OSSMStroke {
 
         void screenTask(void *pvParameters)
         {
-            auto& stroker = Stroker::stroker;
             RotaryEncoder encoder = RotaryEncoder();
             unsigned int patternN = Stroker::getNumberOfPattern();
 
@@ -75,10 +76,13 @@ namespace OSSMStroke {
 
                     case MenuState::HOME:
                         if (buttonState == RotaryEncoder::ButtonState::VERY_LONG) {
-                            if (stroker.getState() == ServoState::PATTERN){
-                                stroker.stopMotion();
-                            } else {
-                                stroker.startPattern();
+                            switch (model.getMotionMode()) {
+                                case Model::MotionMode::STOPPED:
+                                    model.setMotionMode(Model::MotionMode::PATTERN);
+                                    break;
+                                case Model::MotionMode::PATTERN:
+                                    model.setMotionMode(Model::MotionMode::STOPPED);
+                                    break;
                             }
                         } else if (buttonState == RotaryEncoder::ButtonState::LONG) {
                             ossmUi.UpdateMessage("Home");
@@ -89,13 +93,11 @@ namespace OSSMStroke {
                             auto sensation = model.getSensation();
                             sensation = constrain((sensation - (200/ENCODER_RESULTION)), -100, 100);
                             model.setSensation(sensation);
-                            stroker.setSensation(sensation, false);
                             ossmUi.UpdateStateR(map(sensation,-100,100,0,100));
                         } else if (encoder.wasTurnedRight()) {
                             auto sensation = model.getSensation();
                             sensation = constrain((sensation + (200/ENCODER_RESULTION)), -100, 100);
                             model.setSensation(sensation);
-                            stroker.setSensation(sensation, false);
                             ossmUi.UpdateStateR(map(sensation,-100,100,0,100));
                         }
                         break;
@@ -108,8 +110,8 @@ namespace OSSMStroke {
                             ossmUi.UpdateStateR(map(sensation,-100,100,0,100));
                             menuState = HOME;
                         } else if (encoder.wasTurnedLeft()) {
-                            ossmUi.UpdateMessage("Depth Fancy");
-                            menuState = M_SET_DEPTH_FANCY;
+                            ossmUi.UpdateMessage("Set Pattern");
+                            menuState = M_SET_PATTERN;
                         } else if (encoder.wasTurnedRight()) {
                             ossmUi.UpdateMessage("Set Depth");
                             menuState = M_SET_DEPTH;
@@ -142,14 +144,12 @@ namespace OSSMStroke {
                             auto depth = model.getDepth();
                             depth = constrain((depth - DEPTH_RESULTION) , 0, MAX_STROKEINMM);
                             model.setDepth(depth);
-                            stroker.setDepth(depth, false);
                             ossmUi.UpdateStateR(map(depth,0,MAX_STROKEINMM,0,100));
                             LogDebug(depth);
                         } else if (encoder.wasTurnedRight()) {
                             auto depth = model.getDepth();
                             depth = constrain((depth + DEPTH_RESULTION) , 0, MAX_STROKEINMM);
                             model.setDepth(depth);
-                            stroker.setDepth(depth, false);
                             ossmUi.UpdateStateR(map(depth,0,MAX_STROKEINMM,0,100));
                             LogDebug(depth);
                         }
@@ -181,14 +181,12 @@ namespace OSSMStroke {
                             auto stroke = model.getStroke();
                             stroke = constrain((stroke - STROKE_RESULTION) , 0, MAX_STROKEINMM);
                             model.setStroke(stroke);
-                            stroker.setStroke(stroke, false);
                             ossmUi.UpdateStateR(map(stroke,0,MAX_STROKEINMM,0,100));
                             LogDebug(stroke);
                         } else if (encoder.wasTurnedRight()) {
                             auto stroke = model.getStroke();
                             stroke = constrain((stroke + STROKE_RESULTION) , 0, MAX_STROKEINMM);
                             model.setStroke(stroke);
-                            stroker.setStroke(stroke, false);
                             ossmUi.UpdateStateR(map(stroke,0,MAX_STROKEINMM,0,100));
                             LogDebug(stroke);
                         }
@@ -199,14 +197,14 @@ namespace OSSMStroke {
                             auto pattern = model.getPattern();
                             menuState = OPT_SET_PATTERN;
                             ossmUi.UpdateMessage("->Select Pattern<-");
-                            ossmUi.UpdateMessage(stroker.getPatternName(pattern));
+                            ossmUi.UpdateMessage(Stroker::getPatternName(pattern));
                             ossmUi.UpdateTitelR("Pattern");
                         } else if (encoder.wasTurnedLeft()) {
                             ossmUi.UpdateMessage("Set Stroke");
                             menuState = M_SET_STROKE;
                         } else if (encoder.wasTurnedRight()) {
-                            ossmUi.UpdateMessage("Inter. Depth");
-                            menuState = M_SET_DEPTH_INT;
+                            ossmUi.UpdateMessage("Home");
+                            menuState = M_MENUE;
                         }
                         break;
 
@@ -218,98 +216,14 @@ namespace OSSMStroke {
                             ossmUi.UpdateStateR(.0);
                             ossmUi.UpdateTitelR("");
                             model.setPattern(pattern);
-                            stroker.setPattern(pattern, false);
                         } else if (encoder.wasTurnedLeft()) {
                             auto pattern = model.getPattern();
                             pattern = constrain((pattern - 1), 0, patternN);
-                            ossmUi.UpdateMessage(stroker.getPatternName(pattern));
+                            ossmUi.UpdateMessage(Stroker::getPatternName(pattern));
                         } else if (encoder.wasTurnedRight()) {
                             auto pattern = model.getPattern();
                             pattern = constrain((pattern + 1), 0, patternN);
-                            ossmUi.UpdateMessage(stroker.getPatternName(pattern));
-                        }
-                        break;
-
-                    case M_SET_DEPTH_INT:
-                        if (buttonState == RotaryEncoder::ButtonState::LONG) {
-                            float defaultDepth = 10.;
-                            menuState = OPT_SET_DEPTH_INT;
-                            model.setDepth(defaultDepth);
-                            stroker.setupDepth(defaultDepth, false);
-                            ossmUi.UpdateTitelR("Depth");
-                            ossmUi.UpdateStateR(map(defaultDepth,0,MAX_STROKEINMM,0,100));
-                            ossmUi.UpdateMessage("->Inter. Depth<-");
-                        } else if (encoder.wasTurnedLeft()) {
-                            ossmUi.UpdateMessage("Set Pattern");
-                            menuState = M_SET_PATTERN;
-                        } else if (encoder.wasTurnedRight()) {
-                            ossmUi.UpdateMessage("Depth Fancy");
-                            menuState = M_SET_DEPTH_FANCY;
-                        }
-                        break;
-
-                    case OPT_SET_DEPTH_INT:
-                        if (buttonState == RotaryEncoder::ButtonState::LONG) {
-                            menuState = M_SET_DEPTH_INT;
-                            ossmUi.UpdateMessage("Inter. Depth");
-                            ossmUi.UpdateStateR(.0);
-                            ossmUi.UpdateTitelR("");
-                        } else if (encoder.wasTurnedLeft()) {
-                            auto depth = model.getDepth();
-                            depth = constrain((depth - DEPTH_RESULTION) , 0, MAX_STROKEINMM);
-                            model.setDepth(depth);
-                            stroker.setDepth(depth, true);
-                            ossmUi.UpdateStateR(map(depth,0,MAX_STROKEINMM,0,100));
-                            LogDebug(depth);
-                        } else if (encoder.wasTurnedRight()) {
-                            auto depth = model.getDepth();
-                            depth = constrain((depth + DEPTH_RESULTION) , 0, MAX_STROKEINMM);
-                            model.setDepth(depth);
-                            stroker.setDepth(depth, true);
-                            ossmUi.UpdateStateR(map(depth,0,MAX_STROKEINMM,0,100));
-                            LogDebug(depth);
-                            break;
-                        }
-                        break;
-
-                    case M_SET_DEPTH_FANCY:
-                        if (buttonState == RotaryEncoder::ButtonState::LONG) {
-                            float defaultDepth = 10.;
-                            menuState = OPT_SET_DEPTH_FANCY;
-                            ossmUi.UpdateMessage("->Depth Fancy<-");
-                            model.setDepth(defaultDepth);
-                            stroker.setupDepth(defaultDepth, true);
-                            ossmUi.UpdateTitelR("Depth");
-                            ossmUi.UpdateStateR(map(defaultDepth,0,MAX_STROKEINMM,0,100));
-                        } else if (encoder.wasTurnedLeft()) {
-                            ossmUi.UpdateMessage("Inter. Depth");
-                            menuState = M_SET_DEPTH_INT;
-                        } else if (encoder.wasTurnedRight()) {
-                            ossmUi.UpdateMessage("Home");
-                            menuState = M_MENUE;
-                        }
-                        break;
-
-                    case OPT_SET_DEPTH_FANCY:
-                        if (buttonState == RotaryEncoder::ButtonState::LONG) {
-                            menuState = M_SET_DEPTH_FANCY;
-                            ossmUi.UpdateMessage("Depth Fancy");
-                            ossmUi.UpdateStateR(.0);
-                            ossmUi.UpdateTitelR("");
-                        } else if (encoder.wasTurnedLeft()) {
-                            float depth = model.getDepth();
-                            depth = constrain((depth - DEPTH_RESULTION) , 0, MAX_STROKEINMM);
-                            model.setDepth(depth);
-                            stroker.setDepth(depth, true);
-                            ossmUi.UpdateStateR(map(depth,0,MAX_STROKEINMM,0,100));
-                            LogDebug(depth);
-                        } else if (encoder.wasTurnedRight()) {
-                            float depth = model.getDepth();
-                            depth = constrain((depth + DEPTH_RESULTION) , 0, MAX_STROKEINMM);
-                            model.setDepth(depth);
-                            stroker.setDepth(depth, true);
-                            ossmUi.UpdateStateR(map(depth,0,MAX_STROKEINMM,0,100));
-                            LogDebug(depth);
+                            ossmUi.UpdateMessage(Stroker::getPatternName(pattern));
                         }
                         break;
                 }
@@ -317,16 +231,16 @@ namespace OSSMStroke {
                 // get average analog reading, function takes pin and # samples
                 auto speed = getAnalogAverage(SPEED_POT_PIN, 200);
                 ossmUi.UpdateStateL(speed);
-                //LogDebug(speed);
                 speed = fscale(0.00, 99.98, 0.5, USER_SPEEDLIMIT, speed, -1);
                 model.setSpeed(speed);
-                stroker.setSpeed(speed, true);
                 delay(100);
             }
         }
 
         void emergencyStopTask(void *pvParameters)
         {
+            // Currently uses remote control ethernet cable as kill-switch.
+
             bool isConnected = false;
             for (;;)
             {
@@ -341,9 +255,7 @@ namespace OSSMStroke {
                 } else if (isConnected && !ossmUi.DisplayIsConnected()) {
                     LogDebug("Display Disconnected");
                     isConnected = false;
-                    // if(Stroker.getState() == PATTERN){
-                    Stroker::stroker.stopMotion();
-                    // }
+                    model.setMotionMode(Model::MotionMode::STOPPED);
                     vTaskSuspend(screenTaskHandle);
                 }
                 vTaskDelay(200);

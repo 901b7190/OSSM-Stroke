@@ -8,7 +8,7 @@
 #include <WiFi.h>
 
 #include "OSSM_Debug.h"
-// #include "Stroker.h"
+#include "Model.h"
 
 namespace OSSMStroke {
     namespace Network {
@@ -82,8 +82,7 @@ namespace OSSMStroke {
 
             // FIXME hardcoded safeguard. We need model.
             float_t speed = MIN(300.f, doc["speed"].as<float_t>());
-            LogDebugFormatted("Speed: %f\n", speed);
-            // Stroker.setSpeed(MIN(300.f, speed), true);
+            model.setSpeed(speed);
 
             httpd_resp_send(req, "{\"result\": \"ok\"}", 0);
             return ESP_OK;

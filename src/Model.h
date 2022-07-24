@@ -15,8 +15,14 @@ namespace OSSMStroke {
             FAILED
         };
 
+        enum MotionMode {
+            STOPPED,
+            PATTERN
+        };
+
         enum Event {
             HOMING_STATUS_CHANGED,
+            MOTION_MODE_CHANGED,
             SPEED_CHANGED,
             DEPTH_CHANGED,
             STROKE_CHANGED,
@@ -26,7 +32,8 @@ namespace OSSMStroke {
 
         class Model {
             private:
-                HomingStatus _homingStatus = IN_PROGRESS;
+                HomingStatus _homingStatus = HomingStatus::IN_PROGRESS;
+                MotionMode _motionMode = MotionMode::STOPPED;
                 float _speed = .0;
                 float _depth = .0;
                 float _stroke = .0;
@@ -43,6 +50,9 @@ namespace OSSMStroke {
 
                 HomingStatus getHomingStatus();
                 void setHomingStatus(HomingStatus status);
+
+                MotionMode getMotionMode();
+                void setMotionMode(MotionMode motionMode);
 
                 float getSpeed();
                 void setSpeed(float speed);
