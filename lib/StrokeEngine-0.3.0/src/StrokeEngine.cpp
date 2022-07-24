@@ -17,27 +17,27 @@ void StrokeEngine::begin(machineGeometry *physics, motorProperties *motor) {
     _maxStep = int(0.5 + _travel * _motor->stepsPerMillimeter);
     _maxStepPerSecond = int(0.5 + _motor->maxSpeed * _motor->stepsPerMillimeter);
     _maxStepAcceleration = int(0.5 + _motor->maxAcceleration * _motor->stepsPerMillimeter);
-          
+
     // Initialize with default values
     _state = UNDEFINED;
     _isHomed = false;
     _patternIndex = 0;
     _index = 0;
     _depth = _maxStep;
-    _previousDepth = _maxStep; 
+    _previousDepth = _maxStep;
     _stroke = _maxStep / 3;
     _previousStroke = _maxStep / 3;
     _timeOfStroke = 1.0;
     _sensation = 0.0;
 
-    // Setup FastAccelStepper 
+    // Setup FastAccelStepper
     engine.init();
     servo = engine.stepperConnectToPin(_motor->stepPin);
     if (servo) {
         servo->setDirectionPin(_motor->directionPin, _motor->invertDirection);
         servo->setEnablePin(_motor->enablePin, _motor->enableActiveLow);
         servo->setAutoEnable(false);
-        servo->disableOutputs(); 
+        servo->disableOutputs();
     }
     Serial.println("Servo initialized");
 
@@ -61,7 +61,7 @@ void StrokeEngine::setSpeed(float speed, bool applyNow = false) {
     Serial.println("setTimeOfStroke: " + String(_timeOfStroke, 2));
 #endif
 
-        // When running a pattern and immediate update requested: 
+        // When running a pattern and immediate update requested:
         if ((_state == PATTERN) && (applyNow == true)) {
             // set flag to apply update from stroking thread
             _applyUpdate = true;
@@ -86,14 +86,14 @@ void StrokeEngine::setDepth(float depth, bool applyNow = false) {
     if (xSemaphoreTake(_patternMutex, portMAX_DELAY) == pdTRUE) {
         // Convert depth from mm into steps
         // Constrain depth between minStep and maxStep
-        _depth = constrain(int(depth * _motor->stepsPerMillimeter), _minStep, _maxStep); 
+        _depth = constrain(int(depth * _motor->stepsPerMillimeter), _minStep, _maxStep);
 
         patternTable[_patternIndex]->setDepth(_depth);
 
 #ifdef DEBUG_TALKATIVE
         Serial.println("setDepth: " + String(_depth));
 #endif
-        // When running a pattern and immediate update requested: 
+        // When running a pattern and immediate update requested:
         if ((_state == PATTERN) && (applyNow == true)) {
             // set flag to apply update from stroking thread
             _applyUpdate = true;
@@ -124,15 +124,15 @@ void StrokeEngine::setStroke(float stroke, bool applyNow = false) {
 
         // Convert stroke from mm into steps
         // Constrain stroke between minStep and maxStep
-        _stroke = constrain(int(stroke * _motor->stepsPerMillimeter), _minStep, _maxStep); 
+        _stroke = constrain(int(stroke * _motor->stepsPerMillimeter), _minStep, _maxStep);
 
         patternTable[_patternIndex]->setStroke(_stroke);
 
 #ifdef DEBUG_TALKATIVE
         Serial.println("setStroke: " + String(_stroke));
 #endif
-    
-        // When running a pattern and immediate update requested: 
+
+        // When running a pattern and immediate update requested:
         if ((_state == PATTERN) && (applyNow == true)) {
             // set flag to apply update from stroking thread
             _applyUpdate = true;
@@ -163,7 +163,7 @@ void StrokeEngine::setSensation(float sensation, bool applyNow = false) {
     if (xSemaphoreTake(_patternMutex, portMAX_DELAY) == pdTRUE) {
 
         // Constrain sensation between -100 and 100
-        _sensation = constrain(sensation, -100, 100); 
+        _sensation = constrain(sensation, -100, 100);
 
         patternTable[_patternIndex]->setSensation(_sensation);
 
@@ -171,7 +171,7 @@ void StrokeEngine::setSensation(float sensation, bool applyNow = false) {
         Serial.println("setSensation: " + String(_sensation));
 #endif
 
-        // When running a pattern and immediate update requested: 
+        // When running a pattern and immediate update requested:
         if ((_state == PATTERN) && (applyNow == true)) {
             // set flag to apply update from stroking thread
             _applyUpdate = true;
@@ -184,7 +184,7 @@ void StrokeEngine::setSensation(float sensation, bool applyNow = false) {
         // give back mutex
         xSemaphoreGive(_patternMutex);
     }
-    
+
     // if in state SETUPDEPTH then adjust
     if (_state == SETUPDEPTH) {
         _setupDepths();
@@ -195,6 +195,7 @@ float StrokeEngine::getSensation() {
     return _sensation;
 }
 
+#define DEBUG_TALKATIVE
 bool StrokeEngine::setPattern(int patternIndex, bool applyNow = false) {
     // Check wether pattern Index is in range
     if ((patternIndex < patternTableSize) && (patternIndex >= 0)) {
@@ -208,7 +209,7 @@ bool StrokeEngine::setPattern(int patternIndex, bool applyNow = false) {
             patternTable[_patternIndex]->setDepth(_depth);
             patternTable[_patternIndex]->setSensation(_sensation);
 
-            // When running a pattern and immediate update requested: 
+            // When running a pattern and immediate update requested:
             if ((_state == PATTERN) && (applyNow == true)) {
                 // set flag to apply update from stroking thread
                 _applyUpdate = true;
@@ -223,7 +224,7 @@ bool StrokeEngine::setPattern(int patternIndex, bool applyNow = false) {
         }
 
         // Reset index counter
-        _index = 0; 
+        _index = 0;
 
 #ifdef DEBUG_TALKATIVE
     Serial.println("setPattern: [" + String(_patternIndex) + "] " + patternTable[_patternIndex]->getName());
@@ -239,7 +240,7 @@ bool StrokeEngine::setPattern(int patternIndex, bool applyNow = false) {
 #ifdef DEBUG_TALKATIVE
     Serial.println("Failed to set pattern: " + String(_patternIndex));
 #endif
-    return false;   
+    return false;
 }
 
 int StrokeEngine::getPattern() {
@@ -268,11 +269,11 @@ bool StrokeEngine::startPattern() {
             patternTable[_patternIndex]->setTimeOfStroke(_timeOfStroke);
             patternTable[_patternIndex]->setStroke(_stroke);
             patternTable[_patternIndex]->setDepth(_stroke);
-            patternTable[_patternIndex]->setSensation(_sensation);            
+            patternTable[_patternIndex]->setSensation(_sensation);
             xSemaphoreGive(_patternMutex);
         }
 
-        
+
 #ifdef DEBUG_TALKATIVE
         Serial.print(" _timeOfStroke: " + String(_timeOfStroke));
         Serial.print(" | _depth: " + String(_depth));
@@ -290,7 +291,7 @@ bool StrokeEngine::startPattern() {
                 24,                     // Pretty high task priority
                 &_taskStrokingHandle,   // Task handle
                 1                       // Pin to application core
-            ); 
+            );
         } else {
             // Resume task, if it already exists
             vTaskResume(_taskStrokingHandle);
@@ -314,7 +315,7 @@ bool StrokeEngine::startPattern() {
 }
 
 void StrokeEngine::stopMotion() {
-    // only valid when 
+    // only valid when
     if (_state == PATTERN || _state == SETUPDEPTH) {
         // Set state
         _state = READY;
@@ -336,7 +337,7 @@ void StrokeEngine::stopMotion() {
             _callbackTelemetry(float(servo->getCurrentPosition() / _motor->stepsPerMillimeter), 0.0, false);
         }
     }
-    
+
 #ifdef DEBUG_TALKATIVE
     Serial.println("Stroke Engine State: " + verboseState[_state]);
 #endif
@@ -379,7 +380,7 @@ void StrokeEngine::enableAndHome(endstopProperties *endstop, float speed) {
         20,                             // Pretty high task priority
         &_taskHomingHandle,             // Task handle
         1                               // Have it on application core
-    ); 
+    );
 #ifdef DEBUG_TALKATIVE
     Serial.println("Homing task started");
 #endif
@@ -398,12 +399,12 @@ void StrokeEngine::thisIsHome(float speed) {
         servo->setCurrentPosition(-_motor->stepsPerMillimeter * _physics->keepoutBoundary);
 
         // Set feedrate for homing
-        servo->setSpeedInHz(_homeingSpeed);       
+        servo->setSpeedInHz(_homeingSpeed);
         servo->setAcceleration(_maxStepAcceleration / 10);
 
         // drive free of switch and set axis to 0
         servo->moveTo(_minStep);
-        
+
         // Change state
         _isHomed = true;
         _state = READY;
@@ -431,7 +432,7 @@ bool StrokeEngine::moveToMax(float speed) {
         // Stop motion immediately
         stopMotion();
 
-        // Set feedrate for safe move 
+        // Set feedrate for safe move
         // Constrain speed between 1 step/sec and _maxStepPerSecond
         servo->setSpeedInHz(constrain(speed * _motor->stepsPerMillimeter, 1, _maxStepPerSecond));
         servo->setAcceleration(_maxStepAcceleration / 10);
@@ -440,7 +441,7 @@ bool StrokeEngine::moveToMax(float speed) {
         // Send telemetry data
         if (_callbackTelemetry != NULL) {
             _callbackTelemetry(float(_maxStep / _motor->stepsPerMillimeter), speed, false);
-        } 
+        }
 
 #ifdef DEBUG_TALKATIVE
         Serial.println("Stroke Engine State: " + verboseState[_state]);
@@ -465,7 +466,7 @@ bool StrokeEngine::moveToMin(float speed) {
         // Stop motion immediately
         stopMotion();
 
-        // Set feedrate for safe move 
+        // Set feedrate for safe move
         // Constrain speed between 1 step/sec and _maxStepPerSecond
         servo->setSpeedInHz(constrain(speed * _motor->stepsPerMillimeter, 1, _maxStepPerSecond));
         servo->setAcceleration(_maxStepAcceleration / 10);
@@ -474,7 +475,7 @@ bool StrokeEngine::moveToMin(float speed) {
         // Send telemetry data
         if (_callbackTelemetry != NULL) {
             _callbackTelemetry(float(_minStep / _motor->stepsPerMillimeter), speed, false);
-        } 
+        }
 
 #ifdef DEBUG_TALKATIVE
     Serial.println("Stroke Engine State: " + verboseState[_state]);
@@ -504,7 +505,7 @@ bool StrokeEngine::setupDepth(float speed, bool fancy) {
         // Stop motion immediately
         stopMotion();
 
-        // Set feedrate for safe move 
+        // Set feedrate for safe move
         // Constrain speed between 1 step/sec and _maxStepPerSecond
         servo->setSpeedInHz(constrain(speed * _motor->stepsPerMillimeter, 1, _maxStepPerSecond));
         servo->setAcceleration(_maxStepAcceleration / 10);
@@ -554,7 +555,7 @@ String StrokeEngine::getPatternName(int index) {
     } else {
         return String("Invalid");
     }
-    
+
 }
 
 void StrokeEngine::setMaxSpeed(float maxSpeed){
@@ -579,7 +580,7 @@ void StrokeEngine::setMaxAcceleration(float maxAcceleration) {
         _maxStepAcceleration = int(0.5 + _motor->maxAcceleration * _motor->stepsPerMillimeter);
         patternTable[_patternIndex]->setSpeedLimit(_maxStepPerSecond, _maxStepAcceleration, _motor->stepsPerMillimeter);
         xSemaphoreGive(_patternMutex);
-    }    
+    }
 }
 
 float StrokeEngine::getMaxAcceleration() {
@@ -592,8 +593,8 @@ void StrokeEngine::registerTelemetryCallback(void(*callbackTelemetry)(float, flo
 
 void StrokeEngine::_homingProcedure() {
     // Set feedrate for homing
-    servo->setSpeedInHz(_homeingSpeed);       
-    servo->setAcceleration(_maxStepAcceleration / 10);    
+    servo->setSpeedInHz(_homeingSpeed);
+    servo->setAcceleration(_maxStepAcceleration / 10);
 
     // Check if we are already at the homing switch
     if (digitalRead(_homeingPin) == !_homeingActiveLow) {
@@ -638,7 +639,7 @@ void StrokeEngine::_homingProcedure() {
 
             // drive free of switch and set axis to 0
             servo->moveTo(0);
-            
+
             // Break loop, home was found
             break;
         }
@@ -646,7 +647,7 @@ void StrokeEngine::_homingProcedure() {
         // Pause the task for 20ms to allow other tasks
         vTaskDelay(20 / portTICK_PERIOD_MS);
     }
-    
+
     // disable Servo if homing has not found the homing switch
     if (!_isHomed) {
         servo->disableOutputs();
@@ -700,7 +701,7 @@ void StrokeEngine::_stroking() {
             if (_applyUpdate == true) {
                 // Ask pattern for update on motion parameters
                 currentMotion = patternTable[_patternIndex]->nextTarget(_index);
-            
+
                 // Increase deceleration if required to avoid crash
                 if (servo->getAcceleration() > currentMotion.acceleration) {
 #ifdef DEBUG_CLIPPING
@@ -744,8 +745,8 @@ void StrokeEngine::_stroking() {
             // give back mutex
             xSemaphoreGive(_patternMutex);
         }
-        
-        // Delay 10ms 
+
+        // Delay 10ms
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 }
@@ -758,8 +759,8 @@ void StrokeEngine::_streaming() {
         if (_state != STREAMING) {
             vTaskSuspend(_taskStreamingHandle);
         }
-        
-        // Delay 10ms 
+
+        // Delay 10ms
         vTaskDelay(10 / portTICK_PERIOD_MS);
     }
 }
@@ -781,7 +782,7 @@ void StrokeEngine::_applyMotionProfile(motionParameter* motion) {
 #endif
             motion->speed = _maxStepPerSecond;
             clipping = true;
-        } 
+        }
 
         // Constrain acceleration between 1 step/sec^2 and _maxStepAcceleration
         if (motion->acceleration > _maxStepAcceleration) {
@@ -791,7 +792,7 @@ void StrokeEngine::_applyMotionProfile(motionParameter* motion) {
 #endif
             motion->acceleration = _maxStepAcceleration;
             clipping = true;
-        } 
+        }
 
         // Constrain stroke to motion envelope
         int pos = constrain((motion->stroke), _minStep, _maxStep);
@@ -830,23 +831,22 @@ void StrokeEngine::_setupDepths() {
 #ifdef DEBUG_TALKATIVE
         Serial.println("map sensation " + String(_sensation)
             + " to interval [" + String(_depth - _stroke)
-            + ", " + String(_depth) 
+            + ", " + String(_depth)
             + "] = " + String(depth));
 #endif
-    } 
+    }
 
     // move servo to desired position
     servo->moveTo(depth);
 
     // Send telemetry data
     if (_callbackTelemetry != NULL) {
-        _callbackTelemetry(float(depth / _motor->stepsPerMillimeter), 
-            float(servo->getSpeedInMilliHz() * 1000 / _motor->stepsPerMillimeter), 
+        _callbackTelemetry(float(depth / _motor->stepsPerMillimeter),
+            float(servo->getSpeedInMilliHz() * 1000 / _motor->stepsPerMillimeter),
             false);
-    } 
+    }
 
 #ifdef DEBUG_TALKATIVE
     Serial.println("setup new depth: " + String(depth));
 #endif
 }
-

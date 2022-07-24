@@ -28,7 +28,7 @@
 #define OSSM_ENC_SW 35                       // Ecoder Button Switch
 #define OSSM_ENC_CLK 18                      // Encoder A
 #define OSSM_ENC_DT 5                        // Encoder B
-#define OSSM_ENC_TOL 2                       // 2 Clicks of Tolerance
+#define OSSM_ENC_TOL 1                       // Nb of clicks of Tolerance
 #define OSSM_V_LONG_PRESS_MS 300             // Encoder Switch Long Press Activation Time in ms
 #define OSSM_LONG_PRESS_MS 50                // Encoder Switch Short Press Activation Time in ms
 #define OSSM_REMOTE_SDA 21

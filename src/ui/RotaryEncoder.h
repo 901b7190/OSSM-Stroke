@@ -5,7 +5,9 @@ namespace OSSMStroke {
     namespace Ui {
       class RotaryEncoder {
         private:
-          Encoder *encoder;
+          Encoder encoder;
+          bool lastBtn = LOW;
+          unsigned long keyDownTime = 0;
 
         public:
           enum class ButtonState { NONE, SHORT, LONG, VERY_LONG };

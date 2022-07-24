@@ -1,18 +1,16 @@
 #include <Encoder.h>
 
 #include "OSSM_PinDEF.h"
+#include "OSSM_Debug.h"
 #include "ui/RotaryEncoder.h"
 
 namespace OSSMStroke {
     namespace Ui {
-        RotaryEncoder::RotaryEncoder() {
-            encoder = new Encoder(OSSM_ENC_CLK, OSSM_ENC_DT);
+        RotaryEncoder::RotaryEncoder() : encoder(Encoder(OSSM_ENC_CLK, OSSM_ENC_DT)) {
             pinMode(OSSM_ENC_SW, INPUT);
         }
 
         RotaryEncoder::ButtonState RotaryEncoder::checkButton() {
-            static bool lastBtn = LOW;
-            static unsigned long keyDownTime = 0;
             ButtonState btnState = ButtonState::NONE;
             bool thisBtn = digitalRead(OSSM_ENC_SW);
 
@@ -36,16 +34,16 @@ namespace OSSMStroke {
         }
 
         bool RotaryEncoder::wasTurnedLeft() {
-            if (encoder->read() < 0 - OSSM_ENC_TOL) {
-                encoder->write(0);
+            if (encoder.read() < 0 - OSSM_ENC_TOL) {
+                encoder.write(0);
                 return true;
             }
             return false;
         }
 
         bool RotaryEncoder::wasTurnedRight() {
-            if (encoder->read() > 0 + OSSM_ENC_TOL) {
-                encoder->write(0);
+            if (encoder.read() > 0 + OSSM_ENC_TOL) {
+                encoder.write(0);
                 return true;
             }
             return false;
