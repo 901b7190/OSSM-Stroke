@@ -217,11 +217,8 @@ namespace OSSMStroke {
                             ossmUi.UpdateMessage("Select Pattern");
                             ossmUi.UpdateStateR(.0);
                             ossmUi.UpdateTitelR("");
-                            Serial.flush();
                             model.setPattern(pattern);
-                            Serial.flush();
                             stroker.setPattern(pattern, false);
-                            Serial.flush();
                         } else if (encoder.wasTurnedLeft()) {
                             auto pattern = model.getPattern();
                             pattern = constrain((pattern - 1), 0, patternN);
@@ -333,8 +330,8 @@ namespace OSSMStroke {
             bool isConnected = false;
             for (;;)
             {
-                //   bool alm = digitalRead(SERVO_ALM_PIN);
-                //   bool ped = digitalRead(SERVO_PED_PIN);
+                // bool alm = digitalRead(SERVO_ALM_PIN);
+                // bool ped = digitalRead(SERVO_PED_PIN);
                 //LogDebugFormatted("ALM: %ld \n", static_cast<long int>(alm));
                 //LogDebugFormatted("PED: %ld \n", static_cast<long int>(ped));
                 if (!isConnected && ossmUi.DisplayIsConnected()) {
@@ -344,9 +341,9 @@ namespace OSSMStroke {
                 } else if (isConnected && !ossmUi.DisplayIsConnected()) {
                     LogDebug("Display Disconnected");
                     isConnected = false;
-                    //   if(Stroker.getState() == PATTERN){
-                    OSSMStroke::Stroker::stroker.stopMotion();
-                    //   }
+                    // if(Stroker.getState() == PATTERN){
+                    Stroker::stroker.stopMotion();
+                    // }
                     vTaskSuspend(screenTaskHandle);
                 }
                 vTaskDelay(200);
@@ -379,11 +376,6 @@ namespace OSSMStroke {
                 &emergencyStopTaskHandle,   // Task handle to keep track of created task
                 0                           // pin task to core 0
             );
-            // delay(100);
-            // if (!ossmUi.DisplayIsConnected()) {
-            //     LogDebug("Display disconnected. Suspending task.");
-            //     vTaskSuspend(screenTaskHandle);
-            // }
         }
 
         void loop() {

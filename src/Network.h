@@ -1,4 +1,8 @@
 #pragma once
 
-void networkSetup();
-void networkLoop();
+namespace OSSMStroke {
+    namespace Network {
+        void setup();
+        void loop();
+    }
+}
