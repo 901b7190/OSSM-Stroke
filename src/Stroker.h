@@ -1,5 +1,10 @@
-#include <StrokeEngine.h>     // Include Stroke Engine
-
 #pragma once
 
-extern StrokeEngine Stroker;
+#include <StrokeEngine.h>
+
+namespace OSSMStroke {
+    namespace Stroker {
+        extern StrokeEngine stroker;
+        unsigned int getNumberOfPattern();
+    }
+}

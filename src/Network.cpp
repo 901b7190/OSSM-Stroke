@@ -8,7 +8,7 @@
 #include <WiFi.h>
 
 #include "OSSM_Debug.h"
-#include "Stroker.h"
+// #include "Stroker.h"
 
 WiFiManager wifiManager;
 httpd_handle_t server = NULL;
@@ -81,7 +81,7 @@ esp_err_t postControlHandler(httpd_req_t *req) {
     // FIXME hardcoded safeguard. We need model.
     float_t speed = MIN(300.f, doc["speed"].as<float_t>());
     LogDebugFormatted("Speed: %f\n", speed);
-    Stroker.setSpeed(MIN(300.f, speed), true);
+    // Stroker.setSpeed(MIN(300.f, speed), true);
 
     httpd_resp_send(req, "{\"result\": \"ok\"}", 0);
     return ESP_OK;
