@@ -6,6 +6,7 @@
 
 #include "OSSM_Debug.h"
 #include "Model.h"
+#include "network/Controller.h"
 
 namespace OSSMStroke {
     namespace Network {
@@ -14,24 +15,53 @@ namespace OSSMStroke {
             AsyncCallbackJsonWebHandler ctrlHandler(
                 "/ctrl",
                 [](AsyncWebServerRequest *request, JsonVariant &doc) {
-                    if (!doc.is<JsonObject>()) {
-                        request->send(400, "application/json", R"({"error": "not_an_object"})");
-                        return;
-                    }
-
-                    if (!doc["speed"].is<float_t>()) {
-                        request->send(400, "application/json", R"({"error": "invalid_speed"})");
-                        return;
-                    }
-
-                    model.setSpeed(doc["speed"].as<float_t>());
-                    request->send(200, "application/json", R"({"result": "ok"})");
+                    AsyncResponseStream *response = request->beginResponseStream("application/json");
+                    DynamicJsonDocument result(1024);
+                    Controller::processMessage(doc, result);
+                    serializeJson(result, *response);
+                    request->send(response);
                 }
             );
+            AsyncWebSocket wsHandler("/ws");
+
+            void wsOnEvent(
+                AsyncWebSocket* server,
+                AsyncWebSocketClient* client,
+                AwsEventType type,
+                void* arg,
+                uint8_t* data,
+                size_t len
+            ) {
+                if (type == WS_EVT_DATA){
+                    if (!client) return;
+
+                    DynamicJsonDocument doc(1024);
+                    DynamicJsonDocument result(1024);
+                    DeserializationError err = deserializeJson(doc, data, len);
+                    if (err != DeserializationError::Ok) {
+                        result["code"] = 400;
+                        result["error"] = "invalid_json";
+                        result["message"] = "Could not deserialize JSON payload.";
+                        result["json_deserialization_error"] = err.c_str();
+                    } else {
+                        Controller::processMessage(doc, result);
+                    }
+
+                    size_t resultLength = measureJson(result);
+                    AsyncWebSocketMessageBuffer * buffer = wsHandler.makeBuffer(resultLength);
+                    if (buffer) {
+                        serializeJson(result, (char *)buffer->get(), resultLength + 1);
+                        client->text(buffer);
+                    }
+                }
+            }
 
             void registerRoutes() {
                 ctrlHandler.setMethod(HTTP_POST);
                 server.addHandler(&ctrlHandler);
+
+                wsHandler.onEvent(wsOnEvent);
+                server.addHandler(&wsHandler);
 
                 server.onNotFound([](AsyncWebServerRequest *request) {
                     request->send(404);
@@ -85,7 +115,9 @@ namespace OSSMStroke {
                 }
             }
 
-            void loop() {}
+            void loop() {
+                wsHandler.cleanupClients();
+            }
         }
     }
 }
