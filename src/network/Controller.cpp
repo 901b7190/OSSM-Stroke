@@ -117,8 +117,23 @@ namespace OSSMStroke {
                         "sensation",
                         model.MIN_SENSATION,
                         model.MAX_SENSATION,
-                        [](float stroke) { model.setStroke(stroke); }
+                        [](float stroke) { model.setSensation(stroke); }
                     );
+                } else if (type == "send_frame") {
+                    result["type"] = "ack";
+                    float depth = 0;
+                    float speed = 0;
+                    float acceleration = OSSM_MAX_ACCELERATION;
+                    if (doc["depth"].is<float>()) {
+                        depth = doc["depth"];
+                    }
+                    if (doc["speed"].is<float>()) {
+                        speed = doc["speed"];
+                    }
+                    if (doc["acceleration"].is<float>()) {
+                        acceleration = doc["acceleration"];
+                    }
+                    model.sendFrame(depth, speed, acceleration);
                 } else if (type == "set_pattern") {
                     if (!doc["pattern"].is<int>()) {
                         result["code"] = 400;
@@ -132,6 +147,12 @@ namespace OSSMStroke {
                     result["type"] = "ack";
                 } else if (type == "start_pattern") {
                     model.setMotionMode(Model::MotionMode::PATTERN);
+                    result["type"] = "ack";
+                } else if (type == "start_streaming") {
+                    if (model.getMotionMode() != Model::MotionMode::STOPPED) {
+                        model.setMotionMode(Model::MotionMode::STOPPED);
+                    }
+                    model.setMotionMode(Model::MotionMode::STREAMING);
                     result["type"] = "ack";
                 } else if (type == "stop") {
                     model.setMotionMode(Model::MotionMode::STOPPED);
@@ -185,6 +206,9 @@ namespace OSSMStroke {
                             break;
                         case Model::MotionMode::PATTERN:
                             result["motion_mode"] = "PATTERN";
+                            break;
+                        case Model::MotionMode::STREAMING:
+                            result["motion_mode"] = "STREAMING";
                             break;
                     }
                 } else {

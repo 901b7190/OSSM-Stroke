@@ -10,6 +10,11 @@ namespace OSSMStroke {
         class Model;
 
         typedef void (*SubscribeFunc)(Model&);
+        typedef struct {
+            float depth;
+            float speed;
+            float acceleration;
+        } Frame;
 
         enum HomingStatus {
             IN_PROGRESS,
@@ -19,7 +24,8 @@ namespace OSSMStroke {
 
         enum MotionMode {
             STOPPED,
-            PATTERN
+            PATTERN,
+            STREAMING
         };
 
         enum Event {
@@ -30,6 +36,7 @@ namespace OSSMStroke {
             STROKE_CHANGED,
             SENSATION_CHANGED,
             PATTERN_CHANGED,
+            SEND_FRAME
         };
 
         class Model {
@@ -41,6 +48,7 @@ namespace OSSMStroke {
                 float _stroke = 30.;
                 float _sensation = 50.;
                 int _pattern = 0;
+                Frame _frame;
 
                 std::map<Event, std::vector<SubscribeFunc>> _subscriptions;
 
@@ -77,6 +85,9 @@ namespace OSSMStroke {
 
                 int getPattern();
                 void setPattern(int pattern);
+
+                const Frame& getFrame();
+                void sendFrame(float depth, float speed, float acceleration);
         };
     }
 

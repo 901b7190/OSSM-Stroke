@@ -96,11 +96,13 @@ namespace OSSMStroke {
                         break;
 
                     case MenuState::HOME: {
-                        String action = "Start";
-                        if (model.getMotionMode() != Model::MotionMode::STOPPED) {
-                            action = "Stop";
+                        auto motionMode = model.getMotionMode();
+                        if (motionMode == Model::MotionMode::STREAMING) {
+                            screenPayload.message = "[STREAMING MODE]";
+                        } else {
+                            String action = motionMode == Model::MotionMode::STOPPED ? "Start" : "Stop";
+                            screenPayload.message = "Hold Down to " + action;
                         }
-                        screenPayload.message = "Hold Down to " + action;
                         screenPayload.titleLeft = "Speed";
                         screenPayload.titleRight = "Sensation";
                         screenPayload.stateRight = MAP(
@@ -111,11 +113,11 @@ namespace OSSMStroke {
                             100.
                         );
                         if (buttonState == RotaryEncoder::ButtonState::VERY_LONG) {
-                            switch (model.getMotionMode()) {
+                            switch (motionMode) {
                                 case Model::MotionMode::STOPPED:
                                     model.setMotionMode(Model::MotionMode::PATTERN);
                                     break;
-                                case Model::MotionMode::PATTERN:
+                                default:
                                     model.setMotionMode(Model::MotionMode::STOPPED);
                                     break;
                             }

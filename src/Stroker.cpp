@@ -72,16 +72,24 @@ namespace OSSMStroke {
             stroker.setPattern(model.getPattern(), true);
 
             model.subscribe(Model::Event::SPEED_CHANGED, [](Model::Model& model) {
-                stroker.setSpeed(model.getSpeed(), true);
+                if (model.getMotionMode() == Model::MotionMode::PATTERN) {
+                    stroker.setSpeed(model.getSpeed(), true);
+                }
             });
             model.subscribe(Model::Event::SENSATION_CHANGED, [](Model::Model& model) {
-                stroker.setSensation(model.getSensation(), true);
+                if (model.getMotionMode() == Model::MotionMode::PATTERN) {
+                    stroker.setSensation(model.getSensation(), true);
+                }
             });
             model.subscribe(Model::Event::DEPTH_CHANGED, [](Model::Model& model) {
-                stroker.setDepth(model.getDepth(), true);
+                if (model.getMotionMode() == Model::MotionMode::PATTERN) {
+                    stroker.setDepth(model.getDepth(), true);
+                }
             });
             model.subscribe(Model::Event::STROKE_CHANGED, [](Model::Model& model) {
-                stroker.setStroke(model.getStroke(), true);
+                if (model.getMotionMode() == Model::MotionMode::PATTERN) {
+                    stroker.setStroke(model.getStroke(), true);
+                }
             });
             model.subscribe(Model::Event::PATTERN_CHANGED, [](Model::Model& model) {
                 auto pattern = model.getPattern();
@@ -90,13 +98,27 @@ namespace OSSMStroke {
                 }
                 stroker.setPattern(model.getPattern(), false);
             });
+            model.subscribe(Model::Event::SEND_FRAME, [](Model::Model& model) {
+                if (model.getMotionMode() == Model::MotionMode::STREAMING) {
+                    auto frame = model.getFrame();
+                    stroker.setNextFrame(frame.depth, frame.speed, frame.acceleration);
+                }
+            });
 
             model.subscribe(Model::Event::MOTION_MODE_CHANGED, [](Model::Model& model) {
                 Model::MotionMode motionMode = model.getMotionMode();
-                LogDebugFormatted(">>> Motion changed: %d\n", motionMode);
                 switch (motionMode) {
                     case Model::MotionMode::PATTERN:
-                        stroker.startPattern();
+                        if (!stroker.startPattern()) {
+                            LogDebug("Failed to start pattern. Stopping motion.");
+                            model.setMotionMode(Model::MotionMode::STOPPED);
+                        }
+                        break;
+                    case Model::MotionMode::STREAMING:
+                        if (!stroker.startStreaming()) {
+                            LogDebug("Failed to start streaming. Stopping motion.");
+                            model.setMotionMode(Model::MotionMode::STOPPED);
+                        }
                         break;
                     default:
                         stroker.stopMotion();

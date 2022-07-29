@@ -90,5 +90,17 @@ namespace OSSMStroke {
             _pattern = pattern;
             _dispatch(Event::PATTERN_CHANGED);
         }
+
+        const Frame& Model::getFrame() {
+            return _frame;
+        }
+        void Model::sendFrame(float depth, float speed, float acceleration) {
+            _frame = Frame{
+                .depth = depth,
+                .speed = speed,
+                .acceleration = acceleration,
+            };
+            _dispatch(Event::SEND_FRAME);
+        }
     }
 }
