@@ -33,6 +33,10 @@
 // prevents noisy pots registering commands when turned down to zero by user
 #define OSSM_SPEED_POT_DEADZONE_PERCENT 1.
 
+// Maximum size of the buffer in streaming mode. If more frames that that are
+// sent, they will be dimissed.
+#define OSSM_MAX_STREAMING_FRAME_BUFFER_SIZE 1024
+
 // Uncomment the following line if you wish to print DEBUG info
 #define DEBUG
 

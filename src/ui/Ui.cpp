@@ -276,23 +276,21 @@ namespace OSSMStroke {
 
             ossmUi.Setup();
             ossmUi.UpdateOnly();
-            xTaskCreatePinnedToCore(
+            xTaskCreate(
                 remoteControlTask,          // Task function.
                 "remoteControlTask",        // name of task.
                 4096,                       // Stack size of task
                 NULL,                       // parameter of the task
-                5,                          // priority of the task
-                &remoteControlTaskHandle,   // Task handle to keep track of created task
-                0                           // pin task to core 0
+                2,                          // priority of the task
+                &remoteControlTaskHandle    // Task handle to keep track of created task
             );
-            xTaskCreatePinnedToCore(
+            xTaskCreate(
                 emergencyStopTask,          // Task function.
                 "emergencyStopTask",        // name of task.
                 2048,                       // Stack size of task
                 NULL,                       // parameter of the task
-                1,                          // priority of the task
-                &emergencyStopTaskHandle,   // Task handle to keep track of created task
-                0                           // pin task to core 0
+                2,                          // priority of the task
+                &emergencyStopTaskHandle    // Task handle to keep track of created task
             );
         }
 

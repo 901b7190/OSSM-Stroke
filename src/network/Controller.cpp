@@ -120,7 +120,7 @@ namespace OSSMStroke {
                         [](float stroke) { model.setSensation(stroke); }
                     );
                 } else if (type == "send_frame") {
-                    result["type"] = "ack";
+                    unsigned int time = 0;
                     float depth = 0;
                     float speed = 0;
                     float acceleration = OSSM_MAX_ACCELERATION;
@@ -133,7 +133,17 @@ namespace OSSMStroke {
                     if (doc["acceleration"].is<float>()) {
                         acceleration = doc["acceleration"];
                     }
-                    model.sendFrame(depth, speed, acceleration);
+                    if (doc["time"].is<unsigned int>()) {
+                        time = doc["time"];
+                    }
+
+                    model.sendFrame(depth, speed, acceleration, time);
+
+                    result["type"] = "ack";
+                } else if (type == "clear_frames") {
+                    model.clearFrames();
+
+                    result["type"] = "ack";
                 } else if (type == "set_pattern") {
                     if (!doc["pattern"].is<int>()) {
                         result["code"] = 400;
@@ -149,9 +159,6 @@ namespace OSSMStroke {
                     model.setMotionMode(Model::MotionMode::PATTERN);
                     result["type"] = "ack";
                 } else if (type == "start_streaming") {
-                    if (model.getMotionMode() != Model::MotionMode::STOPPED) {
-                        model.setMotionMode(Model::MotionMode::STOPPED);
-                    }
                     model.setMotionMode(Model::MotionMode::STREAMING);
                     result["type"] = "ack";
                 } else if (type == "stop") {

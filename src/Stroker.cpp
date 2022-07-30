@@ -1,3 +1,6 @@
+#include <deque>
+
+#include <esp_timer.h>
 #include <StrokeEngine.h>
 
 #include "OSSM_Config.h"
@@ -10,6 +13,13 @@
 namespace OSSMStroke {
     namespace Stroker {
         StrokeEngine stroker;
+
+        TaskHandle_t streamingTaskHandle = nullptr;
+        QueueHandle_t framesBuffer = xQueueCreate(
+            OSSM_MAX_STREAMING_FRAME_BUFFER_SIZE,
+            sizeof(Model::Frame)
+        );
+        unsigned short framesBufferId = 0;
 
         static motorProperties servoMotor {
             .maxSpeed = OSSM_MAX_SPEED,                // Maximum speed the system can go in mm/s
@@ -46,6 +56,77 @@ namespace OSSMStroke {
             return stroker.getPatternName(index);
         }
 
+
+        void streamingTask(void *pvParameters) {
+            auto currentTimeMs = [](){ return static_cast<unsigned long>(esp_timer_get_time() / 1000); };
+            auto beginningOfTime = currentTimeMs();
+            auto currentFramesBufferId = framesBufferId;
+            Model::Frame frame;
+            Model::Frame nextFrame;
+
+            for (;;) {
+                if (xQueueReceive(framesBuffer, &frame, 100000 / portTICK_PERIOD_MS)) {
+                    currentFramesBufferId = framesBufferId;
+
+                    if (frame.time == 0) {
+                        beginningOfTime = currentTimeMs();
+                    }
+
+                    auto currentTime = currentTimeMs() - beginningOfTime;
+                    if (currentTime < frame.time) {
+                        auto delay = frame.time - currentTime;
+                        LogDebugFormatted("[OSSM STREAMING] Scheduling frame in %dms.\n", delay);
+                        vTaskDelay(delay / portTICK_PERIOD_MS);
+                    } else if (
+                        xQueuePeek(framesBuffer, &nextFrame, 0)
+                        && nextFrame.time < currentTime
+                    ) {
+                        // Just check that the next frame time isn't also
+                        // expired to avoid spamming frames under high load.
+                        LogDebug("[OSSM STREAMING] Skipping frame. Probably lagging.");
+                        continue;
+                    }
+
+                    if (currentFramesBufferId != framesBufferId) {
+                        // The buffer was cleared while we were waiting.
+                        continue;
+                    }
+
+                    LogDebugFormatted(
+                        "[OSSM STREAMING] Sending frame. drift=%dms\n",
+                        currentTimeMs() - beginningOfTime - frame.time
+                    );
+                    stroker.setFrame(frame.depth, frame.speed, frame.acceleration);
+                }
+            }
+        }
+
+        BaseType_t startStreamingTask() {
+            return xTaskCreate(
+                streamingTask,              // Task function.
+                "ossmStreamingTask",        // name of task.
+                2048,                       // Stack size of task
+                NULL,                       // parameter of the task
+                3,                          // priority of the task
+                &streamingTaskHandle        // Task handle to keep track of created task
+            );
+        }
+
+        void clearFramesBuffer() {
+            xQueueReset(framesBuffer);
+            framesBufferId++;
+            xTaskAbortDelay(streamingTaskHandle);
+        }
+
+        void suspendStreamingTask() {
+            clearFramesBuffer();
+            vTaskSuspend(streamingTaskHandle);
+        }
+
+        void resumeStreamingTask() {
+            vTaskResume(streamingTaskHandle);
+        }
+
         void setup() {
             LogDebug("Setting up stroker.");
             stroker.begin(&strokingMachine, &servoMotor);
@@ -63,6 +144,12 @@ namespace OSSMStroke {
             // wait for homing to complete
             while (stroker.getState() != ServoState::READY) {
                 delay(100);
+            }
+
+            if (startStreamingTask()) {
+                suspendStreamingTask();
+            } else {
+                LogDebug("ERROR! Failed to start OSSM streaming task.");
             }
 
             stroker.setSpeed(model.getSpeed(), true);
@@ -101,12 +188,23 @@ namespace OSSMStroke {
             model.subscribe(Model::Event::SEND_FRAME, [](Model::Model& model) {
                 if (model.getMotionMode() == Model::MotionMode::STREAMING) {
                     auto frame = model.getFrame();
-                    stroker.setNextFrame(frame.depth, frame.speed, frame.acceleration);
+                    if (!xQueueSend(framesBuffer, (void*)&frame, 0)) {
+                        LogDebug("ERROR! Maximum frame buffer size reached. Frame skipped. Consider throttling.");
+                        return;
+                    }
                 }
+            });
+            model.subscribe(Model::Event::CLEAR_FRAMES, [](Model::Model& model) {
+                clearFramesBuffer();
             });
 
             model.subscribe(Model::Event::MOTION_MODE_CHANGED, [](Model::Model& model) {
                 Model::MotionMode motionMode = model.getMotionMode();
+
+                if (motionMode != Model::MotionMode::STREAMING) {
+                    suspendStreamingTask();
+                }
+
                 switch (motionMode) {
                     case Model::MotionMode::PATTERN:
                         if (!stroker.startPattern()) {
@@ -115,8 +213,10 @@ namespace OSSMStroke {
                         }
                         break;
                     case Model::MotionMode::STREAMING:
-                        if (!stroker.startStreaming()) {
-                            LogDebug("Failed to start streaming. Stopping motion.");
+                        if (stroker.startStreaming()) {
+                            resumeStreamingTask();
+                        } else {
+                            LogDebug("Failed to start StrokeEngine streaming mode.");
                             model.setMotionMode(Model::MotionMode::STOPPED);
                         }
                         break;

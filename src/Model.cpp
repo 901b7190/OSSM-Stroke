@@ -94,13 +94,17 @@ namespace OSSMStroke {
         const Frame& Model::getFrame() {
             return _frame;
         }
-        void Model::sendFrame(float depth, float speed, float acceleration) {
+        void Model::sendFrame(float depth, float speed, float acceleration, unsigned int time) {
             _frame = Frame{
+                .time = time,
                 .depth = depth,
                 .speed = speed,
-                .acceleration = acceleration,
+                .acceleration = acceleration
             };
             _dispatch(Event::SEND_FRAME);
+        }
+        void Model::clearFrames() {
+            _dispatch(Event::CLEAR_FRAMES);
         }
     }
 }

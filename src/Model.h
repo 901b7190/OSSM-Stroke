@@ -11,6 +11,7 @@ namespace OSSMStroke {
 
         typedef void (*SubscribeFunc)(Model&);
         typedef struct {
+            unsigned int time;
             float depth;
             float speed;
             float acceleration;
@@ -36,7 +37,8 @@ namespace OSSMStroke {
             STROKE_CHANGED,
             SENSATION_CHANGED,
             PATTERN_CHANGED,
-            SEND_FRAME
+            SEND_FRAME,
+            CLEAR_FRAMES
         };
 
         class Model {
@@ -87,7 +89,8 @@ namespace OSSMStroke {
                 void setPattern(int pattern);
 
                 const Frame& getFrame();
-                void sendFrame(float depth, float speed, float acceleration);
+                void sendFrame(float depth, float speed, float acceleration, unsigned int time);
+                void clearFrames();
         };
     }
 
