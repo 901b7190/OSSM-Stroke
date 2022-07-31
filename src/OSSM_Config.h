@@ -37,6 +37,14 @@
 // sent, they will be dimissed.
 #define OSSM_MAX_STREAMING_FRAME_BUFFER_SIZE 1024
 
+// HTTP Config
+#define OSSM_HTTP_SERVER_PORT 80
+
+// MDNS Config
+#define OSSM_MDNS_HOSTNAME "ossm-stroke"
+#define OSSM_MDNS_HOSTNAME "ossm-stroke"
+#define OSSM_MDNS_HTTP_INSTANCE_NAME "OSSM-Stoke HTTP API and WebSocket."
+
 // Uncomment the following line if you wish to print DEBUG info
 #define DEBUG
 

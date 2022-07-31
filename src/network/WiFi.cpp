@@ -15,9 +15,9 @@ namespace OSSMStroke {
                     return;
                 }
 
-                mdns_hostname_set("ossm-stroke");
-                mdns_service_add(NULL, "_http", "_tcp", 80, NULL, 0);
-                mdns_service_instance_name_set("_http", "_tcp", "OSSM-Stoke HTTP API and WebSocket.");
+                mdns_hostname_set(OSSM_MDNS_HOSTNAME);
+                mdns_service_add(NULL, "_http", "_tcp", OSSM_HTTP_SERVER_PORT, NULL, 0);
+                mdns_service_instance_name_set("_http", "_tcp", OSSM_MDNS_HTTP_INSTANCE_NAME);
             }
 
             void setup() {

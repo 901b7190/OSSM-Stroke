@@ -4,6 +4,7 @@
 #include <AsyncJson.h>
 #include <ESPAsyncWebServer.h>
 
+#include "OSSM_Config.h"
 #include "OSSM_Debug.h"
 #include "Model.h"
 #include "network/Controller.h"
@@ -11,7 +12,7 @@
 namespace OSSMStroke {
     namespace Network {
         namespace WebServer {
-            AsyncWebServer server(80);
+            AsyncWebServer server(OSSM_HTTP_SERVER_PORT);
             AsyncCallbackJsonWebHandler ctrlHandler(
                 "/ctrl",
                 [](AsyncWebServerRequest *request, JsonVariant &doc) {
