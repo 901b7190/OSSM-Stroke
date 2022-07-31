@@ -14,7 +14,7 @@ namespace OSSMStroke {
         namespace WebServer {
             AsyncWebServer server(OSSM_HTTP_SERVER_PORT);
             AsyncCallbackJsonWebHandler ctrlHandler(
-                "/ctrl",
+                "/api/command",
                 [](AsyncWebServerRequest *request, JsonVariant &doc) {
                     AsyncResponseStream *response = request->beginResponseStream("application/json");
                     DynamicJsonDocument result(1024);
